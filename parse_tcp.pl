@@ -30,6 +30,10 @@ if(defined $ARGV[0]){
     $output_dir = $ARGV[0];
 }
 
+if(defined $ARGV[1]){
+    $sftap_http_sock = $ARGV[1];
+}
+
 my $d;
 
 
@@ -55,6 +59,7 @@ sub create_taple {
     my %table;
     $table{time}              = $data->{'time'};
     $table{vlan}              = $data->{vlan};
+    $table{netid}             = $data->{netid};
     $table{'server'}={};
     $table{'server'}->{ip}    = $data->{'ip1'};
     $table{'server'}->{port}  = $data->{'port1'};
@@ -70,7 +75,7 @@ sub create_taple {
     $body{server} = '';
     $body{client} = '';
     my $entry = [\%table, \%body];
-    $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}} = $entry;
+    $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}} = $entry;
     
     return $entry;
 }
@@ -80,7 +85,7 @@ sub print_data {
     my $time = $taple->{time};
     my $fh;
     if(defined $d){
-        $fh = $d->get_filehandle_by_vlan($taple->{vlan}, $time);
+        $fh = $d->get_filehandle_by_vlan($taple->{vlan}, $time, $taple->{netid});
     }
     else{
 	$fh = *STDOUT
@@ -89,13 +94,16 @@ sub print_data {
 #    print "ip=", $taple->{client}->{ip}, "time=" ,$time ,"\n";
 }
 
+my $client;
 
-
-my  $client = IO::Socket::UNIX->new(
-    Type=> SOCK_STREAM(),
-    Peer=>$sftap_http_sock);
-
-if(!defined $client){
+if(-S $sftap_http_sock){
+    $client = IO::Socket::UNIX->new(
+	Type=> SOCK_STREAM(),
+	Peer=>$sftap_http_sock);
+}elsif(-f $sftap_http_sock){
+    $client = FileHandle->new($sftap_http_sock, "r");
+}
+else{
     $client = *STDIN;
 }
 
@@ -110,7 +118,7 @@ while($_ = $client->getline){
 	    print_data($taple->[0]);
 	}
 	elsif($data->{'event'} eq 'DESTROYED'){
-	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};
+	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};
 	    if(defined $taple){
 		$taple->[0]->{time} = $data->{time};
 #		$taple->[0]->{server}->{payload} = MIME::Base64::encode(substr($taple->[1]->{server}, 0, MAX_LEN));
@@ -120,11 +128,11 @@ while($_ = $client->getline){
 		$taple->[0]->{status}= 'destroy';
 		$taple->[0]->{reason}= $data->{reason};
 		print_data($taple->[0]);
-		delete $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};
+		delete $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};
 	    }
 	}
 	elsif($data->{'event'} eq 'DATA'){
-	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};	
+	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};	
 	    if(! defined $taple){
 		$taple = create_taple($data);
 	    }

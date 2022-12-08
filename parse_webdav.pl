@@ -27,6 +27,10 @@ if(defined $ARGV[0]){
     $output_dir = $ARGV[0];
 }
 
+if(defined $ARGV[1]){
+    $sftap_http_sock = $ARGV[1];
+}
+
 my $d = new Divide($output_dir, $output_file_head, $output_file_ext, $output_file_ext2);
 
 sub parse_data{
@@ -47,7 +51,7 @@ sub parse_data{
 
 	$taple->{time} =~ m/([\d\.]+)/;
 	my $time =$1;
-	my ($dirname, $pathname) = $d->get_dirname_by_vlan($taple->{vlan}, $time);
+	my ($dirname, $pathname) = $d->get_dirname_by_vlan($taple->{vlan}, $time, $taple->{netid});
 	if(! -d $dirname ){
 	    File::Path::make_path($dirname);
 	}
@@ -67,9 +71,10 @@ sub parse_data{
 	$table{length} = length($contents);
 	$table{path}   = $pathname;
 	$table{vlan}   = $taple->{vlan};
+	$table{netid}  = $taple->{netid};
 
 	my $json_text = encode_json(\%table);
-	my $log_fh = $d->get_filehandle_by_vlan($taple->{vlan}, $time);
+	my $log_fh = $d->get_filehandle_by_vlan($taple->{vlan}, $time, $taple->{netid});
 	print $log_fh $json_text , "\n";
     }
 }
@@ -82,15 +87,20 @@ sub parse_header{
     return \%result;
 }
 
-
-
-my  $client = IO::Socket::UNIX->new(
-    Type=> SOCK_STREAM(),
-    Peer=>$sftap_http_sock);
-if(!defined $client){
+my $client;
+if(-S $sftap_http_sock){
+    print "open $sftap_http_sock as UNIX domain Socket.\n";
+    $client = IO::Socket::UNIX->new(
+	Type=> SOCK_STREAM(),
+	Peer=>$sftap_http_sock);
+}elsif(-f $sftap_http_sock){
+    print "open $sftap_http_sock as file.\n";
+    $client = FileHandle->new($sftap_http_sock, "r");
+}
+else{
+    print "read from STDIN\n";
     $client = *STDIN;
 }
-
 
 my %taple_table;
 
@@ -107,17 +117,18 @@ while($_ = $client->getline){
 	    $table{'port2'} = $data->{'port2'};
 	    $table{time}    = $data->{time};
 	    $table{vlan}    = $data->{vlan};
+	    $table{netid}   = $data->{netid};
 	    $table{body} = "";
 	    $table{len} = 0;
 	    $taple_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}}
 	    = \%table;
 	}
 	else {
-	    my $taple = $taple_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};
+	    my $taple = $taple_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};
 	    if($data->{'event'} eq 'DESTROYED'){
 		if(defined $taple){
 		    parse_data($taple);
-		    delete $taple_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};
+		    delete $taple_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};
 		}
 	    }
 	    elsif($data->{'event'} eq 'DATA'){
@@ -130,7 +141,7 @@ while($_ = $client->getline){
 		       ($taple->{len} + $len > 3)){      ## 最初の４文字がきた時点で判定する
 			if($taple->{body} !~ /^PUT\s+/){
 			    delete $taple_table{$data->{'ip1'}, $data->{'port1'}, 
-						    $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};
+						    $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};
 			}
 		    }
 		    $taple->{len}  += $len;

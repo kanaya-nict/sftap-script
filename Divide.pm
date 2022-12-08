@@ -191,8 +191,17 @@ sub get_clnum_by_vlan{
     return $clnum;
 }
 
+sub get_clnum_by_netid{
+    my ($self, $netid, $vlan) =@_;
+    my $clnum;
+
+    $clnum = sprintf("%06d", $netid);
+    
+    return $clnum;
+}
+
 sub get_filehandle_by_vlan{
-    my($self, $vlan, $time) = @_;
+    my($self, $vlan, $time, $netid) = @_;
     my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst);
 
     if($time=~/(\d+)\-(\d+)\-(\d+)\s+(\d+)\:(\d+)\:(\d+)/){
@@ -209,7 +218,12 @@ sub get_filehandle_by_vlan{
     else{
         $yyyymmdd = sprintf("%04d-%02d-%02d-%2d00", $year + 1900, $mon + 1, $mday, $hour);
     }
-    my $clnum = $self->get_clnum_by_vlan($vlan);
+    my $clnum;
+    if(defined $netid){
+        $clnum = $self->get_clnum_by_netid($netid, $vlan);
+    }else{
+        $clnum = $self->get_clnum_by_vlan($vlan);
+    }
 
     my $fh;
     if((exists $self->{entry_table}->{$clnum})

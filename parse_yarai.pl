@@ -37,7 +37,7 @@ sub is_yarai_agent{
 }
 
 sub parse_yarai_data{
-    my ($body, $vlan) = @_;
+    my ($body, $vlan, $netid) = (@_, 0xFFFFFFFF);
 
     if($body =~ s/.*\xd\xa\xd\xa(\<\?xml version=\"1\.0\" encoding\=\"utf-8\"\?\>[\xd\xa]+\<nirvana_request message_type)/$1/s){
 	my $data = eval{$xml->XMLin($body)};
@@ -53,7 +53,7 @@ sub parse_yarai_data{
 	my $json_text = encode_json($data);
 	my $time = $data->{request_datetime};
 	
-	my $fh = $d->get_filehandle_by_vlan($vlan, $time);
+	my $fh = $d->get_filehandle_by_vlan($vlan, $time, $netid);
 	
 	print $fh "$json_text\n";
     }
@@ -81,18 +81,23 @@ sub create_taple {
     $table{'client'}->{size}  = 0;
     $table{'client'}->{body}  = "";
     $table{vlan}              = $data->{vlan};
+    $table{netid}              = $data->{netid};
     
     my $entry = \%table;
-    $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}} = $entry;
+    $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}} = $entry;
     
     return $entry;
 }
+my $client;
 
-my  $client = IO::Socket::UNIX->new(
-    Type=> SOCK_STREAM(),
-    Peer=>$sftap_http_sock);
-
-if(!defined $client){
+if(-S $sftap_http_sock){
+    $client = IO::Socket::UNIX->new(
+	Type=> SOCK_STREAM(),
+	Peer=>$sftap_http_sock);
+}elsif(-f $sftap_http_sock){
+    $client = FileHandle->new($sftap_http_sock, "r");
+}
+else{
     $client = *STDIN;
 }
 
@@ -107,17 +112,17 @@ while($_ = $client->getline){
 	    $taple->{status}= 'create';
 	}
 	elsif($data->{'event'} eq 'DESTROYED'){
-	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};		
+	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};		
 	    if(defined $taple){
 		$taple->{time} = $data->{time};
 		$taple->{status}= 'destroy';
 		$taple->{reason}= $data->{reason};
-		parse_yarai_data($taple->{client}->{body}, $taple->{vlan});
-		delete $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};
+		parse_yarai_data($taple->{client}->{body}, $taple->{vlan}, $taple->{netid});
+		delete $data_table{$data->{'ip1'},$data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};
 	    }
 	}
 	elsif($data->{'event'} eq 'DATA'){
-	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}};		
+	    my $taple = $data_table{$data->{'ip1'}, $data->{'port1'}, $data->{'ip2'}, $data->{'port2'}, $data->{vlan}, $data->{netid}};		
 	    if(! defined $taple){
 		$taple = create_taple($data);
 	    }

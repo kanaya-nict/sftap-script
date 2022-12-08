@@ -16,8 +16,8 @@ my $d = new Divide($output_dir, $output_file_head, $output_file_ext);
 $d->{yyyymmdd}=1;
 
 sub print_entry{
-    my ($time, $src, $dst, $name, $addr, $id, $type, $vlan) =@_;
-    my $fh = $d->get_filehandle_by_vlan($vlan, $time);
+    my ($time, $src, $dst, $name, $addr, $id, $type, $vlan, $netid) =@_;
+    my $fh = $d->get_filehandle_by_vlan($vlan, $time, $netid);
 
     my %data =(
 	time=>$time,
@@ -49,7 +49,7 @@ while(defined ($_ = <STDIN>)){
 		foreach my $entry (@$answer){
 		    if($entry->{type} eq 'A'){
 			my $time = time;
-			print_entry($time, $src, $dst, $name, $entry->{a}, $data->{'id'}, "answer", $data->{vlan});
+			print_entry($time, $src, $dst, $name, $entry->{a}, $data->{'id'}, "answer", $data->{vlan}, $data->{netid});
 		    }
 		}
 	    }
@@ -71,7 +71,7 @@ while(defined ($_ = <STDIN>)){
 		foreach my $entry (@$query){
 		    if($entry->{type} eq 'A'){
 			my $time = time;
-			print_entry($time, $src, $dst, $name, undef, $data->{'id'}, "query", $data->{vlan});
+			print_entry($time, $src, $dst, $name, undef, $data->{'id'}, "query", $data->{vlan}, $data->{netid});
 		    }
 		}
 	    }

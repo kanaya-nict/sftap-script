@@ -30,19 +30,24 @@ $|=1;
 while($_=<STDIN>){
     last if(! defined $_);
     if(/\"vlan\"\:\"?([\d\.]+)/){
-	my $vlan = $1;
-	if(/\"time\"\:\"?([\d\.]+)/){
-	    my $time = $1;
-	    #	    print STDERR "src=$src, time=$time\n";
-	    if($add_date_flag){
-		chop;chop;
-		my $date = time;
-		$_ = "$_,\"date\":$date}\n";
-	    }
-	    my $fh = $d->get_filehandle_by_vlan($vlan, $time);
-	    if(defined $fh){
-		print $fh $_;
-	    }
-	}
+        my $vlan = $1;
+        my $netid;
+        if(/\"netid\"\:\"?([\d\.]+)/){
+            $netid=$1;
+        }
+        
+        if(/\"time\"\:\"?([\d\.]+)/){
+            my $time = $1;
+            #	    print STDERR "src=$src, time=$time\n";
+            if($add_date_flag){
+                chop;chop;
+                my $date = time;
+                $_ = "$_,\"date\":$date}\n";
+            }
+            my $fh = $d->get_filehandle_by_vlan($vlan, $time, $netid);
+            if(defined $fh){
+                print $fh $_;
+            }
+        }
     }
 }

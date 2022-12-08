@@ -31,6 +31,7 @@ sub parse_header{
 	};
     };
     $res->{vlan} = $data{vlan};
+    $res->{netid} = $data{netid};
     
     return $res;
 }
@@ -64,18 +65,16 @@ my $line;
 while(defined ($line = $s->getline())){
     my $data;
     if(defined ($data = parse_header($line))){
-	$data->{time} = time;
-	my $res; my $body;
-	$res = $s->read($body, $data->{len});
-	parse_body($data, $body);
-	if(exists $data->{src}){
-	    my $fh = $d->get_filehandle_by_vlan($data->{vlan}, $data->{time});
-	    if(defined $fh){
-		print $fh encode_json($data), "\n";
-	    }
-	}
-	print encode_json($data), "\n";
+        $data->{time} = time;
+        my $res; my $body;
+        $res = $s->read($body, $data->{len});
+        parse_body($data, $body);
+        if(exists $data->{src}){
+            my $fh = $d->get_filehandle_by_vlan($data->{vlan}, $data->{time}, $data->{netid});
+            if(defined $fh){
+                print $fh encode_json($data), "\n";
+            }
+        }
+        print encode_json($data), "\n";
     }
 }
-
-    
