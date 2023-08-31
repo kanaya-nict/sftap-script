@@ -26,7 +26,8 @@ sub print_entry{
 	name=>$name,
 	a=>$addr,
 	id=>$id,
-	type=>$type
+	type=>$type,
+	netid=>$netid
 	);
     my $data = encode_json(\%data);
     print $fh "$data\n";

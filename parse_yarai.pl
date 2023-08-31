@@ -32,8 +32,10 @@ my %data_table;
 sub is_yarai_agent{
     my ($data) = @_;
 
-    return ($data->{'ip1'}=~/10\.\d+\.8\.200/) || ($data->{'ip1'}=~/203.0.113.56/)
-	|| ($data->{'ip1'} eq "172.16.18.200");
+    return ($data->{'ip1'}=~/10\.\d+\.8\.200/) || ($data->{'ip1'}=~/203.0.8.200/)
+	|| ($data->{'ip1'} eq "172.16.8.200");
+#    return ($data->{'ip1'}=~/10\.\d+\.8\.200/) || ($data->{'ip1'}=~/203.0.113.56/)
+#	|| ($data->{'ip1'} eq "172.16.18.200");
 }
 
 sub parse_yarai_data{

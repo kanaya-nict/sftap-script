@@ -550,8 +550,8 @@ class sftap_http:
 
     def _get_id(self):
         vlan = -1
-        if 'vlan' in self._header:
-            vlan = self._header['vlan']
+#        if 'vlan' in self._header:
+#            vlan = self._header['vlan']
 
         netid = -1
         if 'netid' in self._header:
